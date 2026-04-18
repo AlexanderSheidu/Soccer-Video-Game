@@ -45,13 +45,13 @@ public class SoccerGame extends Application {
     @Override
     public void start(Stage primaryStage) {
         loadImages();
-        primaryStage.setTitle("Soccer Pro");
+        primaryStage.setTitle("Soccer Video Game");
         
         VBox menu = new VBox(25);
         menu.setStyle("-fx-background-color: #87CEEB; -fx-padding: 50;");
         menu.setAlignment(Pos.CENTER);
 
-        Label title = new Label("SOCCER PRO");
+        Label title = new Label("Soccer Video Game");
         title.setStyle("-fx-text-fill: #FF8C00; -fx-font-family: 'Arial'; -fx-font-size: 50; -fx-font-weight: bold;");
 
         Button rookieBtn = createMenuButton("Rookie", "Rookie", primaryStage);
