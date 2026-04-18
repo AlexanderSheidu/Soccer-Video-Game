@@ -14,162 +14,204 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.scene.image.Image;
-
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
+import java.io.File;
+import javafx.geometry.Pos;
 
 public class SoccerGame extends Application {
-    private static final double SCENE_WIDTH = 800;
-    private static final double SCENE_HEIGHT = 600;
-    private static final double PLAYER_WIDTH = SCENE_WIDTH * 0.1;
-    private static final double PLAYER_HEIGHT = SCENE_HEIGHT * 0.1;
-    private static final double BALL_WIDTH = SCENE_WIDTH * 0.03;
-    private static final double BALL_HEIGHT = SCENE_HEIGHT * 0.03;
-    private static final double GOAL_WIDTH = SCENE_WIDTH * 0.0625; // 50
-    private static final double GOAL_HEIGHT = SCENE_HEIGHT * 0.1667; // 100
+    private static final double WIN_WIDTH = 800;
+    private static final double WIN_HEIGHT = 600;
+    
+    private final double PLAYER_WIDTH = 80;
+    private final double PLAYER_HEIGHT = 60;
+    private final double BALL_WIDTH = 25;
+    private final double BALL_HEIGHT = 25;
+    private final double GOAL_WIDTH = 60; 
+    private final double GOAL_HEIGHT = 130; 
 
-    private double playerX = 100;
-    private double playerY = 100;
-    private double ballX = 300;
-    private double ballY = 200;
-    private double ballSpeedX = 0;
-    private double ballSpeedY = 0;
-    private final double ballFriction = 0.987; // Decreased friction for smoother glide
+    private double playerX, playerY;
+    private double ballX, ballY, ballSpeedX, ballSpeedY;
+    private final double ballFriction = 0.985; 
+    
     private int playerScore = 0;
     private int opponentScore = 0;
-    private double goalX = 750;
-    private double goalY = 250;
-    private final double initialHitSpeedMultiplier = 60.0; // Lower speed for initial hits
-    private final double movingHitSpeedMultiplier = 2; // Multiplier for moving hits
-    private final double speedThreshold = 0.5; // Lower threshold for considering the ball as slow
-
-    private Image fieldImage;
-    private Image playerImage;
-    private Image ballImage;
-    private Image opponentImage;
-
-    private double opponentX = 600;
-    private double opponentY = 300;
-    private double opponentSpeed = 3; // Default value, will be adjusted based on difficulty
-
-    private String difficulty = "Rookie"; // Default difficulty
+    
+    private double opponentX, opponentY;
+    private double opponentSpeed = 150; 
+    private Image fieldImage, playerImage, ballImage, opponentImage;
+    private String difficulty = "Rookie"; 
     private boolean isPaused = false;
+    private double spawnTimer = 0;
 
     @Override
     public void start(Stage primaryStage) {
-        try {
-            fieldImage = new Image(new FileInputStream("new soccer field.png"), SCENE_WIDTH, SCENE_HEIGHT, false, true);
-            playerImage = new Image(new FileInputStream("new player.png"), PLAYER_WIDTH, PLAYER_HEIGHT, false, true);
-            ballImage = new Image(new FileInputStream("new ball.png"), BALL_WIDTH, BALL_HEIGHT, false, true);
-            opponentImage = new Image(new FileInputStream("new opponent.png"), PLAYER_WIDTH, PLAYER_HEIGHT, false, true);
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-            return;
-        }
+        loadImages();
+        primaryStage.setTitle("Soccer Pro");
+        
+        VBox menu = new VBox(25);
+        menu.setStyle("-fx-background-color: #87CEEB; -fx-padding: 50;");
+        menu.setAlignment(Pos.CENTER);
 
-        primaryStage.setTitle("Enhanced Soccer Game");
+        Label title = new Label("SOCCER PRO");
+        title.setStyle("-fx-text-fill: #FF8C00; -fx-font-family: 'Arial'; -fx-font-size: 50; -fx-font-weight: bold;");
 
-        // Difficulty Selection Screen
-        VBox menu = new VBox(20);
-        menu.setStyle("-fx-background-color: lightgray; -fx-padding: 20;");
-        menu.setAlignment(javafx.geometry.Pos.TOP_CENTER);
-        menu.setPrefSize(SCENE_WIDTH, SCENE_HEIGHT);
-
-        Label title = new Label("Select Difficulty");
-        title.setStyle("-fx-font-family: 'Times New Roman'; -fx-font-size: 24; -fx-padding: 20;");
-        title.setAlignment(javafx.geometry.Pos.CENTER);
-
-        Button rookieButton = new Button("Rookie Mode");
-        rookieButton.setStyle("-fx-font-family: 'Times New Roman'; -fx-font-size: 16; -fx-padding: 10;");
-        rookieButton.setOnAction(e -> {
-            difficulty = "Rookie";
-            startGame(primaryStage);
-        });
-
-        Button professionalButton = new Button("Professional Mode");
-        professionalButton.setStyle("-fx-font-family: 'Times New Roman'; -fx-font-size: 16; -fx-padding: 10;");
-        professionalButton.setOnAction(e -> {
-            difficulty = "Professional";
-            startGame(primaryStage);
-        });
-
-        Button legendaryButton = new Button("Legendary Mode");
-        legendaryButton.setStyle("-fx-font-family: 'Times New Roman'; -fx-font-size: 16; -fx-padding: 10;");
-        legendaryButton.setOnAction(e -> {
-            difficulty = "Legendary";
-            startGame(primaryStage);
-        });
-
-        menu.getChildren().addAll(title, rookieButton, professionalButton, legendaryButton);
-
-        StackPane menuPane = new StackPane(menu);
-        menuPane.setPrefSize(SCENE_WIDTH, SCENE_HEIGHT);
-
-        Scene menuScene = new Scene(menuPane, SCENE_WIDTH, SCENE_HEIGHT);
+        Button rookieBtn = createMenuButton("Rookie", "Rookie", primaryStage);
+        Button proBtn = createMenuButton("Professional", "Professional", primaryStage);
+        Button legendBtn = createMenuButton("Legendary", "Legendary", primaryStage);
+        
+        Label hint = new Label("F: Full Screen | P: Pause | R: Reset to Menu");
+        hint.setStyle("-fx-text-fill: #FFFFFF; -fx-text-alignment: center; -fx-padding: 20; -fx-font-weight: bold;");
+        
+        menu.getChildren().addAll(title, rookieBtn, proBtn, legendBtn, hint);
+        Scene menuScene = new Scene(menu, WIN_WIDTH, WIN_HEIGHT);
         primaryStage.setScene(menuScene);
         primaryStage.show();
     }
 
     private void startGame(Stage primaryStage) {
-        Canvas canvas = new Canvas(SCENE_WIDTH, SCENE_HEIGHT);
-        GraphicsContext gc = canvas.getGraphicsContext2D();
         StackPane root = new StackPane();
+        Canvas canvas = new Canvas(primaryStage.getWidth(), primaryStage.getHeight());
+        GraphicsContext gc = canvas.getGraphicsContext2D();
+        
+        canvas.widthProperty().bind(primaryStage.widthProperty());
+        canvas.heightProperty().bind(primaryStage.heightProperty());
         root.getChildren().add(canvas);
-        Scene scene = new Scene(root, SCENE_WIDTH, SCENE_HEIGHT);
-
+        
+        Scene scene = new Scene(root, primaryStage.getWidth(), primaryStage.getHeight());
         scene.setOnMouseMoved(this::handleMouseMoved);
-
-        primaryStage.setTitle("Enhanced Soccer Game");
+        scene.setOnKeyPressed(e -> {
+            if (e.getCode() == KeyCode.P) isPaused = !isPaused;
+            if (e.getCode() == KeyCode.R) restartGame(primaryStage);
+            if (e.getCode() == KeyCode.F) primaryStage.setFullScreen(!primaryStage.isFullScreen());
+        });
+        
         primaryStage.setScene(scene);
 
-        // Adjust opponent speed based on difficulty
-        switch (difficulty) {
-            case "Rookie":
-                opponentSpeed = 75;
-                break;
-            case "Professional":
-                opponentSpeed = 150;
-                break;
-            case "Legendary":
-                opponentSpeed = 230;
-                break;
-        }
+        if (difficulty.equals("Rookie")) opponentSpeed = 160;
+        else if (difficulty.equals("Professional")) opponentSpeed = 280;
+        else opponentSpeed = 450;
 
-        // Add pause and restart functionality
-        scene.setOnKeyPressed(e -> {
-            if (e.getCode() == KeyCode.P) {
-                togglePause();
-            } else if (e.getCode() == KeyCode.R) {
-                restartGame(primaryStage);
-            }
-        });
+        resetBall(primaryStage.getWidth(), primaryStage.getHeight());
 
-        // Pause game when minimized or window loses focus
-        primaryStage.focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
-            if (!isNowFocused) {
-                pauseGame();
-            } else {
-                resumeGame();
-            }
-        });
-
-        primaryStage.setOnHiding(e -> pauseGame());
-        primaryStage.setOnShowing(e -> resumeGame());
-
-        // Main game loop
         new AnimationTimer() {
             private long lastUpdate = 0;
-
             @Override
             public void handle(long now) {
                 if (!isPaused) {
-                    double deltaTime = (now - lastUpdate) / 1_000_000_000.0; // Convert nanoseconds to seconds
+                    if (lastUpdate == 0) lastUpdate = now;
+                    double deltaTime = (now - lastUpdate) / 1_000_000_000.0;
                     lastUpdate = now;
-                    update(deltaTime);
-                    draw(gc);
+                    update(deltaTime, canvas.getWidth(), canvas.getHeight());
+                    draw(gc, canvas.getWidth(), canvas.getHeight());
+                } else {
+                    lastUpdate = 0; 
                 }
             }
         }.start();
+    }
+
+    private void update(double deltaTime, double w, double h) {
+        if (spawnTimer > 0) {
+            spawnTimer -= deltaTime;
+            return; 
+        }
+
+        ballX += ballSpeedX * deltaTime;
+        ballY += ballSpeedY * deltaTime;
+        ballSpeedX *= ballFriction;
+        ballSpeedY *= ballFriction;
+
+        // Bounce off Top/Bottom walls
+        if (ballY < 0 || ballY > h - BALL_HEIGHT) {
+            ballSpeedY *= -0.8;
+            ballY = Math.max(0, Math.min(h - BALL_HEIGHT, ballY));
+        }
+
+        // --- UPDATED BOUNCE LOGIC (No Goal Kicks) ---
+        double goalTop = h / 2 - GOAL_HEIGHT / 2;
+        double goalBottom = h / 2 + GOAL_HEIGHT / 2;
+
+        // Left End Line
+        if (ballX < 0) {
+            if (ballY > goalTop && ballY < goalBottom) {
+                playerScore++; // Goal!
+                resetBall(w, h);
+            } else {
+                ballSpeedX *= -0.8; // Bounce back if it misses the goal
+                ballX = 0;
+            }
+        } 
+        // Right End Line
+        else if (ballX > w - BALL_WIDTH) {
+            if (ballY > goalTop && ballY < goalBottom) {
+                opponentScore++; // Goal!
+                resetBall(w, h);
+            } else {
+                ballSpeedX *= -0.8; // Bounce back if it misses the goal
+                ballX = w - BALL_WIDTH;
+            }
+        }
+
+        if (checkHit(playerX, playerY)) applyHit(playerX, playerY);
+        if (checkHit(opponentX, opponentY)) applyHit(opponentX, opponentY);
+
+        // AI Logic: Attacking Right Goal
+        double targetX, targetY;
+        if (ballX > w * 0.1) { 
+            targetX = ballX - PLAYER_WIDTH; 
+            targetY = ballY - PLAYER_HEIGHT / 2;
+        } else {
+            targetX = w * 0.05; 
+            targetY = h / 2 - PLAYER_HEIGHT / 2;
+        }
+
+        if (Math.abs(opponentX - targetX) > 5) 
+            opponentX += (opponentX < targetX ? 1 : -1) * (opponentSpeed * 0.7) * deltaTime;
+        if (Math.abs(opponentY - targetY) > 5) 
+            opponentY += (opponentY < targetY ? 1 : -1) * opponentSpeed * deltaTime;
+
+        opponentX = Math.max(0, Math.min(w * 0.65, opponentX));
+    }
+
+    private void resetBall(double w, double h) {
+        ballX = w / 2 - BALL_WIDTH / 2;
+        ballY = h / 2 - BALL_HEIGHT / 2;
+        ballSpeedX = 0; ballSpeedY = 0;
+        
+        opponentX = w * 0.15; 
+        opponentY = h / 2 - PLAYER_HEIGHT / 2;
+        
+        playerX = w * 0.85 - PLAYER_WIDTH; 
+        playerY = h / 2 - PLAYER_HEIGHT / 2;
+        
+        spawnTimer = 1.0; 
+    }
+
+    private void draw(GraphicsContext gc, double w, double h) {
+        gc.clearRect(0, 0, w, h);
+        if (fieldImage != null) gc.drawImage(fieldImage, 0, 0, w, h);
+        else { gc.setFill(Color.DARKGREEN); gc.fillRect(0,0,w,h); }
+
+        gc.setStroke(Color.WHITE);
+        gc.setLineWidth(4);
+        double goalTop = h/2 - GOAL_HEIGHT/2;
+        gc.strokeRect(0, goalTop, GOAL_WIDTH, GOAL_HEIGHT);
+        gc.strokeRect(w - GOAL_WIDTH, goalTop, GOAL_WIDTH, GOAL_HEIGHT);
+
+        if (playerImage != null) gc.drawImage(playerImage, playerX, playerY, PLAYER_WIDTH, PLAYER_HEIGHT);
+        if (opponentImage != null) gc.drawImage(opponentImage, opponentX, opponentY, PLAYER_WIDTH, PLAYER_HEIGHT);
+        if (ballImage != null) gc.drawImage(ballImage, ballX, ballY, BALL_WIDTH, BALL_HEIGHT);
+
+        gc.setFill(Color.ORANGE);
+        gc.setFont(javafx.scene.text.Font.font("Arial", 24));
+        gc.fillText("Opponent: " + opponentScore, 80, 50); 
+        gc.fillText("Player: " + playerScore, w - 200, 50);
+        
+        if (isPaused) {
+            gc.setFill(Color.web("rgba(0,0,0,0.5)"));
+            gc.fillRect(0,0,w,h);
+            gc.setFill(Color.ORANGE);
+            gc.fillText("PAUSED", w/2 - 50, h/2);
+        }
     }
 
     private void handleMouseMoved(MouseEvent event) {
@@ -177,172 +219,45 @@ public class SoccerGame extends Application {
         playerY = event.getY() - PLAYER_HEIGHT / 2;
     }
 
-    private void update(double deltaTime) {
-        // Update ball position with current speed
-        ballX += ballSpeedX * deltaTime;
-        ballY += ballSpeedY * deltaTime;
+    private boolean checkHit(double x, double y) {
+        return Math.abs(x + PLAYER_WIDTH/2 - (ballX + BALL_WIDTH/2)) < (PLAYER_WIDTH + BALL_WIDTH)/2
+            && Math.abs(y + PLAYER_HEIGHT/2 - (ballY + BALL_HEIGHT/2)) < (PLAYER_HEIGHT + BALL_HEIGHT)/2;
+    }
 
-        // Apply friction to the ball speed
-        ballSpeedX *= ballFriction;
-        ballSpeedY *= ballFriction;
+    private void applyHit(double px, double py) {
+        double dx = (ballX + BALL_WIDTH/2) - (px + PLAYER_WIDTH/2);
+        double dy = (ballY + BALL_HEIGHT/2) - (py + PLAYER_HEIGHT/2);
+        ballSpeedX = dx * 15; 
+        ballSpeedY = dy * 15;
+    }
 
-        // Bounce ball off walls
-        if (ballX < 0 || ballX > SCENE_WIDTH - BALL_WIDTH) {
-            ballSpeedX = -ballSpeedX;
-            ballX = Math.max(0, Math.min(SCENE_WIDTH - BALL_WIDTH, ballX));
-        }
-        if (ballY < 0 || ballY > SCENE_HEIGHT - BALL_HEIGHT) {
-            ballSpeedY = -ballSpeedY;
-            ballY = Math.max(0, Math.min(SCENE_HEIGHT - BALL_HEIGHT, ballY));
-        }
-
-        // Check for player collision with the ball
-        if (Math.abs(playerX + PLAYER_WIDTH / 2 - (ballX + BALL_WIDTH / 2)) < (PLAYER_WIDTH + BALL_WIDTH) / 2
-            && Math.abs(playerY + PLAYER_HEIGHT / 2 - (ballY + BALL_HEIGHT / 2)) < (PLAYER_HEIGHT + BALL_HEIGHT) / 2) {
-
-            // Calculate collision normal
-            double dx = (ballX + BALL_WIDTH / 2) - (playerX + PLAYER_WIDTH / 2);
-            double dy = (ballY + BALL_HEIGHT / 2) - (playerY + PLAYER_HEIGHT / 2);
-            double length = Math.sqrt(dx * dx + dy * dy);
-
-            if (length != 0) {
-                dx /= length;
-                dy /= length;
-            } else {
-                dx = 1;
-                dy = 0;
-            }
-
-            // Adjust ball position to avoid sticking
-            double overlap = (PLAYER_WIDTH + BALL_WIDTH) / 2 - length;
-            ballX += dx * overlap;
-            ballY += dy * overlap;
-
-            // Calculate the reflection vector
-            double dotProduct = (ballSpeedX * dx + ballSpeedY * dy);
-            ballSpeedX = ballSpeedX - 2 * dotProduct * dx;
-            ballSpeedY = ballSpeedY - 2 * dotProduct * dy;
-
-            // If the ball is moving very slowly, give it a higher initial speed
-            if (Math.abs(ballSpeedX) < speedThreshold && Math.abs(ballSpeedY) < speedThreshold) {
-                ballSpeedX = dx * initialHitSpeedMultiplier;
-                ballSpeedY = dy * initialHitSpeedMultiplier;
-            } else {
-                // Increase ball speed upon collision with the player
-                double speedIncrease = 2;
-                ballSpeedX *= speedIncrease;
-                ballSpeedY *= speedIncrease;
-            }
-        }
-
-        // Simple AI for opponent
-        double aiSpeed = opponentSpeed * deltaTime;
-        double targetX = ballX + BALL_WIDTH / 2 - PLAYER_WIDTH / 2;
-        double targetY = ballY + BALL_HEIGHT / 2 - PLAYER_HEIGHT / 2;
-
-        if (opponentX < targetX) {
-            opponentX += aiSpeed;
-        } else {
-            opponentX -= aiSpeed;
-        }
-        if (opponentY < targetY) {
-            opponentY += aiSpeed;
-        } else {
-            opponentY -= aiSpeed;
-        }
-
-        // Prevent opponent from going out of bounds
-        opponentX = Math.max(0, Math.min(SCENE_WIDTH - PLAYER_WIDTH, opponentX));
-        opponentY = Math.max(0, Math.min(SCENE_HEIGHT - PLAYER_HEIGHT, opponentY));
-
-        // Check for opponent collision with the ball
-        if (Math.abs(opponentX + PLAYER_WIDTH / 2 - (ballX + BALL_WIDTH / 2)) < (PLAYER_WIDTH + BALL_WIDTH) / 2
-            && Math.abs(opponentY + PLAYER_HEIGHT / 2 - (ballY + BALL_HEIGHT / 2)) < (PLAYER_HEIGHT + BALL_HEIGHT) / 2) {
-            if (Math.abs(ballSpeedX) < speedThreshold && Math.abs(ballSpeedY) < speedThreshold) {
-                // Ball is almost stationary
-                ballSpeedX = (ballX + BALL_WIDTH / 2 - opponentX - PLAYER_WIDTH / 2) * initialHitSpeedMultiplier;
-                ballSpeedY = (ballY + BALL_HEIGHT / 2 - opponentY - PLAYER_HEIGHT / 2) * initialHitSpeedMultiplier;
-            } else {
-                // Ball is moving
-                double normalX = (ballX + BALL_WIDTH / 2 - opponentX - PLAYER_WIDTH / 2) / ((PLAYER_WIDTH + BALL_WIDTH) / 2);
-                double normalY = (ballY + BALL_HEIGHT / 2 - opponentY - PLAYER_HEIGHT / 2) / ((PLAYER_WIDTH + BALL_WIDTH) / 2);
-                
-                // Calculate the reflection vector
-                double dotProduct = (ballSpeedX * normalX + ballSpeedY * normalY);
-                ballSpeedX = ballSpeedX - 2 * dotProduct * normalX;
-                ballSpeedY = ballSpeedY - 2 * dotProduct * normalY;
-
-                // Increase speed when the ball is moving
-                ballSpeedX *= movingHitSpeedMultiplier;
-                ballSpeedY *= movingHitSpeedMultiplier;
-            }
-        }
-
-        // Check for goal
-        if (ballX > goalX && ballX < goalX + GOAL_WIDTH && ballY > goalY && ballY < goalY + GOAL_HEIGHT) {
-            playerScore++;
-            resetBall();
-        } else if (ballX < GOAL_WIDTH && ballY > goalY && ballY < goalY + GOAL_HEIGHT) {
-            opponentScore++;
-            resetBall();
+    private void loadImages() {
+        try {
+            fieldImage = new Image(new File("new soccer field.png").toURI().toURL().toString());
+            playerImage = new Image(new File("new player.png").toURI().toURL().toString());
+            ballImage = new Image(new File("new ball.png").toURI().toURL().toString());
+            opponentImage = new Image(new File("new opponent.png").toURI().toURL().toString());
+        } catch (Exception e) {
+            System.out.println("Resource images not found.");
         }
     }
 
-    private void draw(GraphicsContext gc) {
-        gc.drawImage(fieldImage, 0, 0);
-        gc.drawImage(playerImage, playerX, playerY);
-        gc.drawImage(ballImage, ballX, ballY);
-        gc.drawImage(opponentImage, opponentX, opponentY);
-
-        // Draw goal area
-        gc.setStroke(Color.RED);
-        gc.strokeRect(goalX, goalY, GOAL_WIDTH, GOAL_HEIGHT);
-        gc.strokeRect(0, goalY, GOAL_WIDTH, GOAL_HEIGHT);
-
-        // Draw score
-        gc.setFill(Color.SKYBLUE);
-        gc.setTextAlign(javafx.scene.text.TextAlignment.CENTER);
-        gc.setFont(javafx.scene.text.Font.font("Times New Roman", 24));
-        gc.fillText("Player Score: " + opponentScore, SCENE_WIDTH * 3 / 4, 30);
-        gc.fillText("Opponent Score: " + playerScore, SCENE_WIDTH / 4, 30);
-    }
-
-    private void resetBall() {
-        ballX = SCENE_WIDTH / 2 - BALL_WIDTH / 2;
-        ballY = SCENE_HEIGHT / 2 - BALL_HEIGHT / 2;
-        ballSpeedX = 0;
-        ballSpeedY = 0;
-    }
-
-    private void togglePause() {
-        isPaused = !isPaused;
-    }
-
-    private void pauseGame() {
-        isPaused = true;
-    }
-
-    private void resumeGame() {
-        isPaused = false;
+    private Button createMenuButton(String text, String diff, Stage stage) {
+        Button btn = new Button(text);
+        btn.setPrefWidth(250);
+        btn.setStyle("-fx-font-size: 18; -fx-base: #ffffff; -fx-font-weight: bold; -fx-cursor: hand;");
+        btn.setOnAction(e -> {
+            difficulty = diff;
+            startGame(stage);
+        });
+        return btn;
     }
 
     private void restartGame(Stage primaryStage) {
-        // This only runs when 'R' is pressed
-        playerScore = 0;
-        opponentScore = 0;
-        
-        // Reset positions so the game starts fresh
-        playerX = 100;
-        playerY = 100;
-        opponentX = 600;
-        opponentY = 300;
-        resetBall();
-
-        isPaused = false; // Ensure the game isn't stuck in pause mode
-        start(primaryStage); // Go back to the difficulty menu
+        playerScore = 0; opponentScore = 0;
+        isPaused = false;
+        start(primaryStage); 
     }
 
-    public static void main(String[] args) {
-        launch(args);
-    }
+    public static void main(String[] args) { launch(args); }
 }
