@@ -188,30 +188,62 @@ public class SoccerGame extends Application {
 
     private void draw(GraphicsContext gc, double w, double h) {
         gc.clearRect(0, 0, w, h);
+        
+        // 1. Background
         if (fieldImage != null) gc.drawImage(fieldImage, 0, 0, w, h);
         else { gc.setFill(Color.DARKGREEN); gc.fillRect(0,0,w,h); }
 
+        // 2. Field Goals
         gc.setStroke(Color.WHITE);
         gc.setLineWidth(4);
         double goalTop = h/2 - GOAL_HEIGHT/2;
         gc.strokeRect(0, goalTop, GOAL_WIDTH, GOAL_HEIGHT);
         gc.strokeRect(w - GOAL_WIDTH, goalTop, GOAL_WIDTH, GOAL_HEIGHT);
 
+        // 3. Score Boxes (HUD)
+        gc.setFont(javafx.scene.text.Font.font("Arial", 24));
+        
+        // Box dimensions
+        double boxW = 220;
+        double boxH = 40;
+        double boxY = 30; // Vertical position from top
+        
+        // Draw Opponent Score Box (Left)
+        drawScoreBox(gc, 40, boxY, boxW, boxH, "Opponent: " + opponentScore);
+        
+        // Draw Player Score Box (Right)
+        drawScoreBox(gc, w - boxW - 40, boxY, boxW, boxH, "Player: " + playerScore);
+
+        // 4. Entities
         if (playerImage != null) gc.drawImage(playerImage, playerX, playerY, PLAYER_WIDTH, PLAYER_HEIGHT);
         if (opponentImage != null) gc.drawImage(opponentImage, opponentX, opponentY, PLAYER_WIDTH, PLAYER_HEIGHT);
         if (ballImage != null) gc.drawImage(ballImage, ballX, ballY, BALL_WIDTH, BALL_HEIGHT);
-
-        gc.setFill(Color.ORANGE);
-        gc.setFont(javafx.scene.text.Font.font("Arial", 24));
-        gc.fillText("Opponent: " + opponentScore, 80, 50); 
-        gc.fillText("Player: " + playerScore, w - 200, 50);
         
+        // 5. Pause Overlay
         if (isPaused) {
             gc.setFill(Color.web("rgba(0,0,0,0.5)"));
             gc.fillRect(0,0,w,h);
             gc.setFill(Color.ORANGE);
             gc.fillText("PAUSED", w/2 - 50, h/2);
         }
+    }
+
+    /**
+     * Helper method to draw a bordered box with white fill and text
+     */
+    private void drawScoreBox(GraphicsContext gc, double x, double y, double w, double h, String text) {
+        // White Background
+        gc.setFill(Color.WHITE);
+        gc.fillRect(x, y, w, h);
+        
+        // Black Border
+        gc.setStroke(Color.BLACK);
+        gc.setLineWidth(2);
+        gc.strokeRect(x, y, w, h);
+        
+        // Orange Text (Centered in box)
+        gc.setFill(Color.ORANGE);
+        gc.fillText(text, x + 15, y + 28);
     }
 
     private void handleMouseMoved(MouseEvent event) {
