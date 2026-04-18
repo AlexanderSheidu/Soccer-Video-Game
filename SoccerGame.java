@@ -300,11 +300,11 @@ public class SoccerGame extends Application {
         gc.strokeRect(0, goalY, GOAL_WIDTH, GOAL_HEIGHT);
 
         // Draw score
-        gc.setFill(Color.WHITE);
+        gc.setFill(Color.SKYBLUE);
         gc.setTextAlign(javafx.scene.text.TextAlignment.CENTER);
         gc.setFont(javafx.scene.text.Font.font("Times New Roman", 24));
-        gc.fillText("Player Score: " + playerScore, SCENE_WIDTH / 4, 30);
-        gc.fillText("Opponent Score: " + opponentScore, SCENE_WIDTH * 3 / 4, 30);
+        gc.fillText("Player Score: " + opponentScore, SCENE_WIDTH * 3 / 4, 30);
+        gc.fillText("Opponent Score: " + playerScore, SCENE_WIDTH / 4, 30);
     }
 
     private void resetBall() {
@@ -327,8 +327,19 @@ public class SoccerGame extends Application {
     }
 
     private void restartGame(Stage primaryStage) {
-        isPaused = false;
-        start(primaryStage); // Restart the game and go back to the difficulty menu
+        // This only runs when 'R' is pressed
+        playerScore = 0;
+        opponentScore = 0;
+        
+        // Reset positions so the game starts fresh
+        playerX = 100;
+        playerY = 100;
+        opponentX = 600;
+        opponentY = 300;
+        resetBall();
+
+        isPaused = false; // Ensure the game isn't stuck in pause mode
+        start(primaryStage); // Go back to the difficulty menu
     }
 
     public static void main(String[] args) {
